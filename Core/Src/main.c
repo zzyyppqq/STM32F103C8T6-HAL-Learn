@@ -40,6 +40,11 @@ uint8_t recvBuff[BUFFER_SIZE];  //接收数据缓存数组
 volatile uint8_t recvLength = 0;  //接收一帧数据的长度
 volatile uint8_t recvDndFlag = 0; //一帧数据接收完成标志
 
+// ADC转换值
+__IO uint32_t ADC_ConvertedValue;
+// 用于保存转换计算后的电压值
+float ADC_Vol;
+
 /**
   * @brief 重定向c库函数printf到USARTx
   * @retval None
@@ -132,6 +137,10 @@ int main(void)
    */
   HAL_TIM_Base_Start_IT(&htim4);
 
+    // ADC初始化后，添加ADC中断开启函数，这样在第一次接收到数据的时候才会触发中断
+    HAL_ADCEx_Calibration_Start(&hadc1);    //AD校准
+    HAL_ADC_Start_IT(&hadc1); //开启ADC中断转换
+
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in freertos.c) */
@@ -149,6 +158,13 @@ int main(void)
       // 注意：如果不开启串口中断，则程序只能发送一次数据,程序不能判断DMA传输是否完成，USART一直处于busy状态。
       HAL_UART_Transmit_DMA(&huart1, (uint8_t *)sendBuff, sizeof(sendBuff));
       HAL_Delay(1000);
+
+      // 添加电压值转换
+      ADC_Vol =(float) ADC_ConvertedValue/4096*3.3; // 读取转换的AD倿
+      printf("The current AD ADC_ConvertedValue = 0x%04X", ADC_ConvertedValue);
+      printf("The current AD ADC_Vol = %f V \r\n",ADC_Vol); //实际电压倿
+      HAL_Delay(1000);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -211,6 +227,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         HAL_UART_Transmit(&huart1, (uint8_t *)Buffer, 1, 0xffff);
         HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
     }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    // 在中断回调函数中进行读取数据，将数据存放在变量 ADC_ConvertedValue 中。
+    ADC_ConvertedValue = HAL_ADC_GetValue(hadc);
 }
 /* USER CODE END 4 */
 
