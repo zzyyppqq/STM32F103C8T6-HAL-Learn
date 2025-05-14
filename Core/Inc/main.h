@@ -70,6 +70,10 @@ void Error_Handler(void);
 #define KEY3_EXTI_IRQn EXTI0_IRQn
 
 /* USER CODE BEGIN Private defines */
+#define BUFFER_SIZE 256
+extern uint8_t recvBuff[BUFFER_SIZE];  //接收数据缓存
+extern volatile uint8_t recvLength;  //接收一帧数据的长度
+extern volatile uint8_t recvDndFlag; //一帧数据接收完成标志
 
 /* USER CODE END Private defines */
 

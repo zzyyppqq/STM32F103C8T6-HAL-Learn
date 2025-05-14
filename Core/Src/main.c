@@ -19,18 +19,45 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+uint8_t Buffer[1];
+uint8_t sendBuff[] = "USART test by DMA\r\n";
+
+uint8_t recvBuff[BUFFER_SIZE];  //接收数据缓存数组
+volatile uint8_t recvLength = 0;  //接收一帧数据的长度
+volatile uint8_t recvDndFlag = 0; //一帧数据接收完成标志
+
+/**
+  * @brief 重定向c库函数printf到USARTx
+  * @retval None
+  */
+int fputc(int ch, FILE *f)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xffff);
+    return ch;
+}
+
+/**
+  * @brief 重定向c库函数getchar,scanf到USARTx
+  * @retval None
+  */
+int fgetc(FILE *f) {
+    uint8_t ch = 0;
+    HAL_UART_Receive(&huart1, &ch, 1, 0xffff);
+    return ch;
+}
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -89,10 +116,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
+    HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
+    __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
+    HAL_UART_Receive_DMA(&huart1, recvBuff, BUFFER_SIZE);
+//    HAL_UART_Receive_DMA(&huart1, (uint8_t *)Buffer, 1);
   /**
    * 添加定时器启动函数
    * 现在进入 main 函数并在 while 循环前加入开启定时器函数 HAL_TIM_Base_Start_IT()，这里所传入的 htim4 就是刚刚定时器初始化后的结构体。
@@ -102,16 +133,20 @@ int main(void)
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init();
+//  MX_FREERTOS_Init();
 
   /* Start scheduler */
-  osKernelStart();
+//  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
+      // 注意：如果不开启串口中断，则程序只能发送一次数据,程序不能判断DMA传输是否完成，USART一直处于busy状态。
+      HAL_UART_Transmit_DMA(&huart1, (uint8_t *)sendBuff, sizeof(sendBuff));
+      HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -160,6 +195,14 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if(huart->Instance == USART1)
+    {
+        HAL_UART_Transmit(&huart1, (uint8_t *)Buffer, 1, 0xffff);
+        HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
+    }
+}
 /* USER CODE END 4 */
 
 /**
@@ -180,8 +223,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         time++;           // 每1ms进来1次
         if(time == 1000)  // 每1秒LED灯翻转一次
         {
-            HAL_GPIO_TogglePin(LED_WHITE_GPIO_Port,LED_WHITE_Pin);
-            HAL_GPIO_TogglePin(LED_RED_GPIO_Port,LED_RED_Pin);
+//            HAL_GPIO_TogglePin(LED_WHITE_GPIO_Port,LED_WHITE_Pin);
+//            HAL_GPIO_TogglePin(LED_RED_GPIO_Port,LED_RED_Pin);
             time = 0;
         }
     }
