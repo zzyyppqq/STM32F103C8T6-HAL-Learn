@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -89,7 +90,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+
+  /**
+   * 添加定时器启动函数
+   * 现在进入 main 函数并在 while 循环前加入开启定时器函数 HAL_TIM_Base_Start_IT()，这里所传入的 htim4 就是刚刚定时器初始化后的结构体。
+   */
+  HAL_TIM_Base_Start_IT(&htim4);
 
   /* USER CODE END 2 */
 
@@ -165,7 +173,18 @@ void SystemClock_Config(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-
+    static uint32_t time = 0;
+    if(htim->Instance == TIM4)  // 定时器4基地址
+    {
+        // 自定义应用程序
+        time++;           // 每1ms进来1次
+        if(time == 1000)  // 每1秒LED灯翻转一次
+        {
+            HAL_GPIO_TogglePin(LED_WHITE_GPIO_Port,LED_WHITE_Pin);
+            HAL_GPIO_TogglePin(LED_RED_GPIO_Port,LED_RED_Pin);
+            time = 0;
+        }
+    }
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM1) {
     HAL_IncTick();
