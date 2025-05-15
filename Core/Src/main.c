@@ -22,6 +22,7 @@
 #include "adc.h"
 #include "dma.h"
 #include "i2c.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -30,6 +31,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <memory.h>
+#include "W25Q64.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,11 +65,19 @@ __IO uint32_t ADC_ConvertedValue;
 // 用于保存转换计算后的电压值
 float ADC_Vol;
 
+// I2C
 #define ADDR_24LCxx_Write 0xA0
 #define ADDR_24LCxx_Read 0xA1
 #define BufferSize 256
 uint8_t WriteBuffer[BufferSize] = {0};
 uint8_t ReadBuffer[BufferSize] = {0};
+
+// SPI
+uint16_t device_id;
+uint8_t read_buf[10] = {0};
+uint8_t write_buf[10] = {0};
+int i;
+
 
 /* USER CODE END PV */
 
@@ -81,57 +91,7 @@ void MX_FREERTOS_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/* USER CODE END 0 */
-
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_TIM4_Init();
-  MX_ADC1_Init();
-  MX_I2C2_Init();
-  /* USER CODE BEGIN 2 */
-    HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
-    __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
-    HAL_UART_Receive_DMA(&huart1, recvBuff, BUFFER_SIZE);
-    // HAL_UART_Receive_DMA(&huart1, (uint8_t *)Buffer, 1);
-  /**
-   * 添加定时器启动函数
-   * 现在进入 main 函数并在 while 循环前加入开启定时器函数 HAL_TIM_Base_Start_IT()，这里所传入的 htim4 就是刚刚定时器初始化后的结构体。
-   */
-    HAL_TIM_Base_Start_IT(&htim4);
-
-    // ADC初始化后，添加ADC中断开启函数，这样在第一次接收到数据的时候才会触发中断
-    HAL_ADCEx_Calibration_Start(&hadc1);    //AD校准
-    HAL_ADC_Start_IT(&hadc1); //开启ADC中断转换
-
-
+void I2C_Example() {
     // STM32F103C8T6无独立EEPROM，可用Flash模拟
     printf("\r\n***************I2C Example*******************************\r\n");
     uint32_t i;
@@ -179,6 +139,109 @@ int main(void)
     {
         printf("\r\n EEPROM 24C02 Read Test False\r\n");
     }
+
+}
+
+void SPI_Example() {
+    printf("\r\n***************SPI Example*******************************\r\n");
+
+    device_id = W25QXX_ReadID();
+    printf("W25Q64 Device ID is 0x%04x\r\n", device_id);
+
+    /* 为了验证，首先读取要写入地址处的数据 */
+    printf("-------- read data before write -----------\r\n");
+    W25QXX_Read(read_buf, 0, 10);
+
+    for(i = 0; i < 10; i++)
+    {
+        printf("[0x%08x]:0x%02x\r\n", i, *(read_buf+i));
+    }
+
+    /* 擦除该扇区 */
+    printf("-------- erase sector 0 -----------\r\n");
+    W25QXX_Erase_Sector(0);
+
+    /* 再次读数据 */
+    printf("-------- read data after erase -----------\r\n");
+    W25QXX_Read(read_buf, 0, 10);
+    for(i = 0; i < 10; i++)
+    {
+        printf("[0x%08x]:0x%02x\r\n", i, *(read_buf+i));
+    }
+
+    /* 写数据 */
+    printf("-------- write data -----------\r\n");
+    for(i = 0; i < 10; i++)
+    {
+        write_buf[i] = i;
+    }
+    W25QXX_Page_Program(write_buf, 0, 10);
+
+    /* 再次读数据 */
+    printf("-------- read data after write -----------\r\n");
+    W25QXX_Read(read_buf, 0, 10);
+    for(i = 0; i < 10; i++)
+    {
+        printf("[0x%08x]:0x%02x\r\n", i, *(read_buf+i));
+    }
+}
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_USART1_UART_Init();
+  MX_TIM4_Init();
+  MX_ADC1_Init();
+  MX_I2C2_Init();
+  MX_SPI1_Init();
+  /* USER CODE BEGIN 2 */
+    HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
+    __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
+    HAL_UART_Receive_DMA(&huart1, recvBuff, BUFFER_SIZE);
+    // HAL_UART_Receive_DMA(&huart1, (uint8_t *)Buffer, 1);
+  /**
+   * 添加定时器启动函数
+   * 现在进入 main 函数并在 while 循环前加入开启定时器函数 HAL_TIM_Base_Start_IT()，这里所传入的 htim4 就是刚刚定时器初始化后的结构体。
+   */
+    HAL_TIM_Base_Start_IT(&htim4);
+
+    // ADC初始化后，添加ADC中断开启函数，这样在第一次接收到数据的时候才会触发中断
+    HAL_ADCEx_Calibration_Start(&hadc1);    //AD校准
+    HAL_ADC_Start_IT(&hadc1); //开启ADC中断转换
+
+    // I2C_Example();
+    SPI_Example();
+
+
+
 
   /* USER CODE END 2 */
 
@@ -273,6 +336,46 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     // 在中断回调函数中进行读取数据，将数据存放在变量 ADC_ConvertedValue 中。
     ADC_ConvertedValue = HAL_ADC_GetValue(hadc);
 }
+
+
+//  封装SPI Flash(W25Q64)的命令和底层函数
+/**
+ * 向 SPI Flash 发送数据的函数
+ * @brief    SPI发送指定长度的数据
+ * @param    buf  —— 发送数据缓冲区首地址
+ * @param    size —— 要发送数据的字节数
+ * @retval   成功返回HAL_OK
+ */
+HAL_StatusTypeDef SPI_Transmit(uint8_t* send_buf, uint16_t size)
+{
+    return HAL_SPI_Transmit(&hspi1, send_buf, size, 100);
+}
+
+/**
+ * 从 SPI Flash 接收数据的函数
+ * @brief   SPI接收指定长度的数据
+ * @param   buf  —— 接收数据缓冲区首地址
+ * @param   size —— 要接收数据的字节数
+ * @retval  成功返回HAL_OK
+ */
+HAL_StatusTypeDef SPI_Receive(uint8_t* recv_buf, uint16_t size)
+{
+    return HAL_SPI_Receive(&hspi1, recv_buf, size, 100);
+}
+
+/**
+ * 发送数据的同时读取数据的函数
+ * @brief   SPI在发送数据的同时接收指定长度的数据
+ * @param   send_buf  —— 接收数据缓冲区首地址
+ * @param   recv_buf  —— 接收数据缓冲区首地址
+ * @param   size —— 要发送/接收数据的字节数
+ * @retval  成功返回HAL_OK
+ */
+HAL_StatusTypeDef SPI_TransmitReceive(uint8_t* send_buf, uint8_t* recv_buf, uint16_t size)
+{
+    return HAL_SPI_TransmitReceive(&hspi1, send_buf, recv_buf, size, 100);
+}
+
 /* USER CODE END 4 */
 
 /**
