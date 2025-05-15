@@ -21,6 +21,7 @@
 #include "cmsis_os.h"
 #include "adc.h"
 #include "dma.h"
+#include "i2c.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -28,42 +29,12 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <memory.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-uint8_t Buffer[1];
-uint8_t sendBuff[] = "USART test by DMA\r\n";
-
-uint8_t recvBuff[BUFFER_SIZE];  //接收数据缓存数组
-volatile uint8_t recvLength = 0;  //接收一帧数据的长度
-volatile uint8_t recvDndFlag = 0; //一帧数据接收完成标志
-
-// ADC转换值
-__IO uint32_t ADC_ConvertedValue;
-// 用于保存转换计算后的电压值
-float ADC_Vol;
-
-/**
-  * @brief 重定向c库函数printf到USARTx
-  * @retval None
-  */
-int fputc(int ch, FILE *f)
-{
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xffff);
-    return ch;
-}
-
-/**
-  * @brief 重定向c库函数getchar,scanf到USARTx
-  * @retval None
-  */
-int fgetc(FILE *f) {
-    uint8_t ch = 0;
-    HAL_UART_Receive(&huart1, &ch, 1, 0xffff);
-    return ch;
-}
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -79,6 +50,24 @@ int fgetc(FILE *f) {
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
+uint8_t Buffer[1];
+uint8_t sendBuff[] = "USART test by DMA\r\n";
+
+uint8_t recvBuff[BUFFER_SIZE];  //接收数据缓存数组
+volatile uint8_t recvLength = 0;  //接收一帧数据的长度
+volatile uint8_t recvDndFlag = 0; //一帧数据接收完成标志
+
+// ADC转换值
+__IO uint32_t ADC_ConvertedValue;
+// 用于保存转换计算后的电压值
+float ADC_Vol;
+
+#define ADDR_24LCxx_Write 0xA0
+#define ADDR_24LCxx_Read 0xA1
+#define BufferSize 256
+uint8_t WriteBuffer[BufferSize] = {0};
+uint8_t ReadBuffer[BufferSize] = {0};
 
 /* USER CODE END PV */
 
@@ -126,20 +115,70 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   MX_ADC1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
     HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
     HAL_UART_Receive_DMA(&huart1, recvBuff, BUFFER_SIZE);
-//    HAL_UART_Receive_DMA(&huart1, (uint8_t *)Buffer, 1);
+    // HAL_UART_Receive_DMA(&huart1, (uint8_t *)Buffer, 1);
   /**
    * 添加定时器启动函数
    * 现在进入 main 函数并在 while 循环前加入开启定时器函数 HAL_TIM_Base_Start_IT()，这里所传入的 htim4 就是刚刚定时器初始化后的结构体。
    */
-  HAL_TIM_Base_Start_IT(&htim4);
+    HAL_TIM_Base_Start_IT(&htim4);
 
     // ADC初始化后，添加ADC中断开启函数，这样在第一次接收到数据的时候才会触发中断
     HAL_ADCEx_Calibration_Start(&hadc1);    //AD校准
     HAL_ADC_Start_IT(&hadc1); //开启ADC中断转换
+
+
+    // STM32F103C8T6无独立EEPROM，可用Flash模拟
+    printf("\r\n***************I2C Example*******************************\r\n");
+    uint32_t i;
+    uint8_t j;
+    // 0x00 ~ 0xFF
+    for(i = 0; i < 256; i++)
+    {
+        WriteBuffer[i] = i;    /* WriteBuffer init */
+        printf("0x%02X ", WriteBuffer[i]);
+        if(i % 16 == 15)
+        {
+            printf("\n\r");
+        }
+    }
+    /* wrinte date to EEPROM */
+    for (j = 0; j < 32; j++)
+    {
+        HAL_StatusTypeDef status = HAL_I2C_Mem_Write(&hi2c2, ADDR_24LCxx_Write, 8*j, I2C_MEMADD_SIZE_8BIT, WriteBuffer+8*j, 8, 100);
+        if(status == HAL_OK)
+        {
+            printf("\r\n EEPROM 24C02 Write Test OK \r\n");
+        }
+        else
+        {
+            printf("\r\n EEPROM 24C02 Write Test False [status: 0x%02X]  \r\n", status);
+        }
+        HAL_Delay(5);
+    }
+    /* read date from EEPROM */
+    HAL_I2C_Mem_Read(&hi2c2, ADDR_24LCxx_Read, 0, I2C_MEMADD_SIZE_8BIT, ReadBuffer, BufferSize, 1000);
+    for(i = 0; i < 256; i++)
+    {
+        printf("0x%02X  ",ReadBuffer[i]);
+        if(i%16 == 15)
+        {
+            printf("\n\r");
+        }
+    }
+
+    if(memcmp(WriteBuffer,ReadBuffer,BufferSize) == 0 ) /* check date */
+    {
+        printf("\r\n EEPROM 24C02 Read Test OK\r\n");
+    }
+    else
+    {
+        printf("\r\n EEPROM 24C02 Read Test False\r\n");
+    }
 
   /* USER CODE END 2 */
 
