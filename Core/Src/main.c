@@ -23,6 +23,7 @@
 #include "dma.h"
 #include "i2c.h"
 #include "iwdg.h"
+#include "rtc.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -98,6 +99,10 @@ uint16_t indexWave[] = {
 };
 
 uint16_t POINT_NUM = sizeof(indexWave)/sizeof(indexWave[0]);
+
+// RTC
+RTC_DateTypeDef GetData;  //获取日期结构体
+RTC_TimeTypeDef GetTime;   //获取时间结构体
 
 /* USER CODE END PV */
 
@@ -245,6 +250,7 @@ int main(void)
 //  MX_IWDG_Init();
 //  MX_WWDG_Init();
   MX_TIM2_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
     HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
@@ -270,6 +276,22 @@ int main(void)
 //    printf("\n\r***** IWDG Test Start *****\n\r");
 //
 //    printf("\n\r***** WWDG Test Start *****\n\r");
+
+    // RTC设置初始时间
+
+// 设置时间（23:19:45）
+    GetTime.Hours = 23;
+    GetTime.Minutes = 24;
+    GetTime.Seconds = 45;
+    //GetTime.TimeFormat = RTC_HOURFORMAT_24;  // 24小时制
+    HAL_RTC_SetTime(&hrtc, &GetTime, RTC_FORMAT_BIN);
+
+// 设置日期（2025年5月16日，星期五）
+    GetData.WeekDay = RTC_WEEKDAY_FRIDAY;  // 星期需根据实际日期计算
+    GetData.Month = RTC_MONTH_MAY;
+    GetData.Date = 16;
+    GetData.Year = 25;  // 年份为2025的后两位
+    HAL_RTC_SetDate(&hrtc, &GetData, RTC_FORMAT_BIN);
 
   /* USER CODE END 2 */
 
@@ -306,6 +328,22 @@ int main(void)
 //      printf("\n\r Running...\n\r");
 //      HAL_Delay(1000);
 
+
+      /* Get the RTC current Time */
+      HAL_RTC_GetTime(&hrtc, &GetTime, RTC_FORMAT_BIN);
+      /* Get the RTC current Date */
+      HAL_RTC_GetDate(&hrtc, &GetData, RTC_FORMAT_BIN);
+
+      /* Display date Format : yy/mm/dd */
+      printf("%02d/%02d/%02d\r\n",2000 + GetData.Year, GetData.Month, GetData.Date);
+      /* Display time Format : hh:mm:ss */
+      printf("%02d:%02d:%02d\r\n",GetTime.Hours, GetTime.Minutes, GetTime.Seconds);
+
+      printf("\r\n");
+
+      HAL_Delay(1000);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -326,9 +364,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
+                              |RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -352,7 +392,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
