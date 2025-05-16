@@ -26,6 +26,7 @@
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
+#include "wwdg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -223,7 +224,8 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C2_Init();
   MX_SPI1_Init();
-  MX_IWDG_Init();
+//  MX_IWDG_Init();
+//  MX_WWDG_Init();
   /* USER CODE BEGIN 2 */
     HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
@@ -242,8 +244,9 @@ int main(void)
     // I2C_Example();
     // SPI_Example();
 
-    printf("\n\r***** IWDG Test Start *****\n\r");
-
+//    printf("\n\r***** IWDG Test Start *****\n\r");
+//
+//    printf("\n\r***** WWDG Test Start *****\n\r");
 
   /* USER CODE END 2 */
 
@@ -260,22 +263,25 @@ int main(void)
 
   while (1)
   {
-//      // 注意：如果不开启串口中断，则程序只能发送一次数据,程序不能判断DMA传输是否完成，USART一直处于busy状态。
+//      // DMA 注意：如果不开启串口中断，则程序只能发送一次数据,程序不能判断DMA传输是否完成，USART一直处于busy状态。
 //      HAL_UART_Transmit_DMA(&huart1, (uint8_t *)sendBuff, sizeof(sendBuff));
 //      HAL_Delay(1000);
 //
-//      // 添加电压值转换
+//      // ADC 添加电压值转换
 //      ADC_Vol =(float) ADC_ConvertedValue/4096*3.3; // 读取转换的AD倿
 //      printf("The current AD ADC_ConvertedValue = 0x%04X", ADC_ConvertedValue);
 //      printf("The current AD ADC_Vol = %f V \r\n",ADC_Vol); //实际电压倿
 //      HAL_Delay(1000);
 
+      // IWDG
+//      printf("\n\r Refreshes the IWDG !!!\n\r");
+//      // 因为设置超时溢出为 1 秒，所以这里每隔 800 毫秒喂狗一次 HAL_IWDG_Refresh(&hiwdg);
+//      HAL_IWDG_Refresh(&hiwdg);
+//      HAL_Delay(800);
 
-      printf("\n\r Refreshes the IWDG !!!\n\r");
-      // 因为设置超时溢出为 1 秒，所以这里每隔 800 毫秒喂狗一次 HAL_IWDG_Refresh(&hiwdg);
-      HAL_IWDG_Refresh(&hiwdg);
-      HAL_Delay(800);
-
+      // WWDG
+//      printf("\n\r Running...\n\r");
+//      HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
@@ -348,6 +354,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     ADC_ConvertedValue = HAL_ADC_GetValue(hadc);
 }
 
+void HAL_WWDG_EarlyWakeupCallback(WWDG_HandleTypeDef *hwwdg)
+{
+    HAL_WWDG_Refresh(hwwdg);
+}
 
 //  封装SPI Flash(W25Q64)的命令和底层函数
 /**
