@@ -22,6 +22,7 @@
 #include "adc.h"
 #include "dma.h"
 #include "i2c.h"
+#include "iwdg.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -222,6 +223,7 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C2_Init();
   MX_SPI1_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
     HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
@@ -238,9 +240,9 @@ int main(void)
     HAL_ADC_Start_IT(&hadc1); //开启ADC中断转换
 
     // I2C_Example();
-    SPI_Example();
+    // SPI_Example();
 
-
+    printf("\n\r***** IWDG Test Start *****\n\r");
 
 
   /* USER CODE END 2 */
@@ -255,17 +257,25 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
+
   while (1)
   {
-      // 注意：如果不开启串口中断，则程序只能发送一次数据,程序不能判断DMA传输是否完成，USART一直处于busy状态。
-      HAL_UART_Transmit_DMA(&huart1, (uint8_t *)sendBuff, sizeof(sendBuff));
-      HAL_Delay(1000);
+//      // 注意：如果不开启串口中断，则程序只能发送一次数据,程序不能判断DMA传输是否完成，USART一直处于busy状态。
+//      HAL_UART_Transmit_DMA(&huart1, (uint8_t *)sendBuff, sizeof(sendBuff));
+//      HAL_Delay(1000);
+//
+//      // 添加电压值转换
+//      ADC_Vol =(float) ADC_ConvertedValue/4096*3.3; // 读取转换的AD倿
+//      printf("The current AD ADC_ConvertedValue = 0x%04X", ADC_ConvertedValue);
+//      printf("The current AD ADC_Vol = %f V \r\n",ADC_Vol); //实际电压倿
+//      HAL_Delay(1000);
 
-      // 添加电压值转换
-      ADC_Vol =(float) ADC_ConvertedValue/4096*3.3; // 读取转换的AD倿
-      printf("The current AD ADC_ConvertedValue = 0x%04X", ADC_ConvertedValue);
-      printf("The current AD ADC_Vol = %f V \r\n",ADC_Vol); //实际电压倿
-      HAL_Delay(1000);
+
+      printf("\n\r Refreshes the IWDG !!!\n\r");
+      // 因为设置超时溢出为 1 秒，所以这里每隔 800 毫秒喂狗一次 HAL_IWDG_Refresh(&hiwdg);
+      HAL_IWDG_Refresh(&hiwdg);
+      HAL_Delay(800);
+
 
     /* USER CODE END WHILE */
 
@@ -287,10 +297,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
