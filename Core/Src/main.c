@@ -80,6 +80,24 @@ uint8_t read_buf[10] = {0};
 uint8_t write_buf[10] = {0};
 int i;
 
+// PWM
+uint16_t indexWave[] = {
+        1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4,
+        4, 5, 5, 6, 7, 8, 9, 10, 11, 13,
+        15, 17, 19, 22, 25, 28, 32, 36,
+        41, 47, 53, 61, 69, 79, 89, 102,
+        116, 131, 149, 170, 193, 219, 250,
+        284, 323, 367, 417, 474, 539, 613,
+        697, 792, 901, 1024, 1024, 901, 792,
+        697, 613, 539, 474, 417, 367, 323,
+        284, 250, 219, 193, 170, 149, 131,
+        116, 102, 89, 79, 69, 61, 53, 47, 41,
+        36, 32, 28, 25, 22, 19, 17, 15, 13,
+        11, 10, 9, 8, 7, 6, 5, 5, 4, 4, 3, 3,
+        2, 2, 2, 2, 1, 1, 1, 1
+};
+
+uint16_t POINT_NUM = sizeof(indexWave)/sizeof(indexWave[0]);
 
 /* USER CODE END PV */
 
@@ -226,6 +244,7 @@ int main(void)
   MX_SPI1_Init();
 //  MX_IWDG_Init();
 //  MX_WWDG_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
     HAL_UART_Receive_IT(&huart1, (uint8_t *)Buffer, 1);
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); //使能IDLE中断
@@ -240,6 +259,10 @@ int main(void)
     // ADC初始化后，添加ADC中断开启函数，这样在第一次接收到数据的时候才会触发中断
     HAL_ADCEx_Calibration_Start(&hadc1);    //AD校准
     HAL_ADC_Start_IT(&hadc1); //开启ADC中断转换
+
+    // PWM启动
+    HAL_TIM_Base_Start_IT(&htim2);
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 
     // I2C_Example();
     // SPI_Example();
@@ -422,6 +445,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             time = 0;
         }
     }
+
+    static uint8_t pwm_index = 1;        /* 用于PWM查表 */
+    static uint8_t period_cnt = 0;       /* 用于计算周期数 */
+    if (htim->Instance == TIM2) {
+
+        period_cnt++;
+        /* 若输出的周期数大于20，输出下一种脉冲宽的PWM波 */
+        if(period_cnt >= 20)
+        {
+            /* 根据PWM表修改定时器的比较寄存器值 */
+            __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_4, indexWave[pwm_index]);
+
+            /* 标志PWM表的下一个元素 */
+            pwm_index++;
+            /* 若PWM脉冲表已经输出完成一遍，重置PWM查表标志 */
+            if( pwm_index >=  POINT_NUM)
+            {
+                pwm_index=0;
+            }
+            /* 重置周期计数标志 */
+            period_cnt=0;
+        }
+    }
+
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM1) {
     HAL_IncTick();
