@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>STM32F103C8T6-FreeRTOS-UART-Learn</name>
+	<name>STM32F103C8T6-HAL-Learn</name>
 	<comment></comment>
 	<projects>
 	</projects>
