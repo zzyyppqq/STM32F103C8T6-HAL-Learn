@@ -64,7 +64,7 @@ void HAL_WWDG_MspInit(WWDG_HandleTypeDef* wwdgHandle)
     __HAL_RCC_WWDG_CLK_ENABLE();
 
     /* WWDG interrupt Init */
-    HAL_NVIC_SetPriority(WWDG_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(WWDG_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(WWDG_IRQn);
   /* USER CODE BEGIN WWDG_MspInit 1 */
 

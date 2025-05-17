@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
 #include "adc.h"
 #include "crc.h"
 #include "dma.h"
@@ -109,7 +108,6 @@ RTC_TimeTypeDef GetTime;   //获取时间结构体
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -290,8 +288,8 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C2_Init();
   MX_SPI1_Init();
-//  MX_IWDG_Init();
-//  MX_WWDG_Init();
+  MX_IWDG_Init();
+  MX_WWDG_Init();
   MX_TIM2_Init();
   MX_RTC_Init();
   MX_CRC_Init();
@@ -342,13 +340,6 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* Call init function for freertos objects (in freertos.c) */
-//  MX_FREERTOS_Init();
-//
-//  /* Start scheduler */
-//  osKernelStart();
-
-  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
